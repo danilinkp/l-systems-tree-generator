@@ -32,7 +32,7 @@ private:
 	glm::vec3 target;
 	glm::vec3 up = glm::vec3(0, 1, 0);
 	float fov = 60.0f;
-	float aspect = 4.0f / 3.0f;
+	float aspect = 16.0f / 9.0f;
 	float nearPlane = 0.5f;
 	float farPlane = 100.0f;
 

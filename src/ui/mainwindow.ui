@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1653</width>
-    <height>960</height>
+    <height>1162</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -192,32 +192,43 @@
        <string>Параметры L-системы</string>
       </property>
       <layout class="QGridLayout" name="gridLayout_2">
-       <item row="4" column="1">
-        <widget class="QDoubleSpinBox" name="step_spin_box"/>
+       <item row="5" column="2">
+        <widget class="QDoubleSpinBox" name="angle_spin_box"/>
        </item>
-       <item row="2" column="0">
-        <widget class="QLabel" name="label">
+       <item row="3" column="0" colspan="3">
+        <widget class="QPushButton" name="add_rule_btn">
          <property name="text">
-          <string>Кол-во итераций:</string>
+          <string>Добавить правило</string>
          </property>
         </widget>
        </item>
-       <item row="1" column="1">
+       <item row="6" column="2">
+        <widget class="QDoubleSpinBox" name="step_spin_box"/>
+       </item>
+       <item row="2" column="0" colspan="3">
+        <widget class="QTableView" name="rules_table"/>
+       </item>
+       <item row="1" column="2">
         <widget class="QLineEdit" name="rule_edit"/>
        </item>
-       <item row="3" column="1">
-        <widget class="QDoubleSpinBox" name="angle_spin_box"/>
+       <item row="0" column="0">
+        <widget class="QLabel" name="label_4">
+         <property name="text">
+          <string>Аксиома:</string>
+         </property>
+        </widget>
        </item>
-       <item row="2" column="1">
-        <widget class="QDoubleSpinBox" name="iterations_spin_box"/>
-       </item>
-       <item row="0" column="1">
-        <widget class="QLineEdit" name="axiome_edit"/>
+       <item row="5" column="0">
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string>Угол:</string>
+         </property>
+        </widget>
        </item>
        <item row="4" column="0">
-        <widget class="QLabel" name="label_3">
+        <widget class="QLabel" name="label">
          <property name="text">
-          <string>Длина шага:</string>
+          <string>Кол-во итераций:</string>
          </property>
         </widget>
        </item>
@@ -228,19 +239,21 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="0">
-        <widget class="QLabel" name="label_2">
+       <item row="4" column="2">
+        <widget class="QDoubleSpinBox" name="iterations_spin_box"/>
+       </item>
+       <item row="6" column="0">
+        <widget class="QLabel" name="label_3">
          <property name="text">
-          <string>Угол:</string>
+          <string>Длина шага:</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="0">
-        <widget class="QLabel" name="label_4">
-         <property name="text">
-          <string>Аксиома:</string>
-         </property>
-        </widget>
+       <item row="1" column="1">
+        <widget class="QComboBox" name="symbols_combo_box"/>
+       </item>
+       <item row="0" column="1" colspan="2">
+        <widget class="QLineEdit" name="axiome_edit"/>
        </item>
       </layout>
      </widget>

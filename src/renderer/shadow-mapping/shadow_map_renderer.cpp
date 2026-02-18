@@ -72,8 +72,13 @@ void ShadowMapRenderer::fillTriangle(glm::vec2 v0, glm::vec2 v1, glm::vec2 v2, f
 				float z = w0 * z0 + w1 * z1 + w2 * z2;
 				z = glm::clamp(z, 0.0f, 1.0f);
 
-				if (zBuffer->testAndSet(x, y, z))
-					shadowMap[y * width + x] = z;
+				int idx = y * width + x;
+				if (idx >= 0 && idx < static_cast<int>(shadowMap.size())) {
+					if (zBuffer->testAndSet(x, y, z)) {
+						shadowMap[idx] = z;
+					}
+				}
+
 			}
 		}
 	}

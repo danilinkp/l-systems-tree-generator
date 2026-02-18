@@ -19,10 +19,10 @@ QImage SceneRenderer::render(const Scene &scene, Camera &camera) {
 	if (!rasterizer)
 		return {};
 
-	const auto& sceneLights = scene.getLights();
+	const auto &sceneLights = scene.getLights();
 
 	bool foundDirectionalForShadows = false;
-	for (const auto& light : sceneLights) {
+	for (const auto &light : sceneLights) {
 		if (light.type == LightType::Directional) {
 			sunLight = light;
 			foundDirectionalForShadows = true;
@@ -45,6 +45,7 @@ void SceneRenderer::setShadowsEnabled(const bool enabled) {
 
 void SceneRenderer::setShadowMapSize(const int size) {
 	shadowMapSize = size;
+	rasterizer->clearShadowMap();
 	shadowMapRenderer = std::make_unique<ShadowMapRenderer>(shadowMapSize, shadowMapSize);
 }
 
@@ -80,19 +81,17 @@ glm::vec3 SceneRenderer::computeSceneCenter(const Scene &scene) {
 				maxBound = glm::max(maxBound, worldPos);
 				hasGeometry = true;
 			}
-		}
-		else if (auto *instObj = dynamic_cast<InstancedMeshObject *>(obj.get())) {
-			const auto& proto = instObj->getPrototype();
-			for (const auto& inst : instObj->getInstances()) {
-				for (const auto& v : proto.vertices) {
+		} else if (auto *instObj = dynamic_cast<InstancedMeshObject *>(obj.get())) {
+			const auto &proto = instObj->getPrototype();
+			for (const auto &inst : instObj->getInstances()) {
+				for (const auto &v : proto.vertices) {
 					glm::vec3 worldPos = inst.position + v.position;
 					minBound = glm::min(minBound, worldPos);
 					maxBound = glm::max(maxBound, worldPos);
 					hasGeometry = true;
 				}
 			}
-		}
-		else if (auto *planeObj = dynamic_cast<PlaneObject *>(obj.get())) {
+		} else if (auto *planeObj = dynamic_cast<PlaneObject *>(obj.get())) {
 			for (const auto &v : planeObj->getMesh().vertices) {
 				glm::vec3 worldPos = v.position + planeObj->getPosition();
 				minBound = glm::min(minBound, worldPos);
@@ -108,7 +107,7 @@ glm::vec3 SceneRenderer::computeSceneCenter(const Scene &scene) {
 	return (minBound + maxBound) * 0.5f;
 }
 
-void SceneRenderer::renderWithShadows(const Scene &scene, Camera &camera, const std::vector<Light>& sceneLights) const {
+void SceneRenderer::renderWithShadows(const Scene &scene, Camera &camera, const std::vector<Light> &sceneLights) const {
 	glm::vec3 lightDir = glm::normalize(sunLight.direction);
 	glm::vec3 lightDirectionFrom = -lightDir;
 	glm::vec3 sceneCenter = computeSceneCenter(scene);
@@ -124,9 +123,12 @@ void SceneRenderer::renderWithShadows(const Scene &scene, Camera &camera, const 
 
 	float shadowOrthoSize = 40.0f;
 	glm::mat4 lightProj = glm::ortho(
-		-shadowOrthoSize, shadowOrthoSize,
-		-shadowOrthoSize, shadowOrthoSize,
-		0.1f, 150.0f
+		-shadowOrthoSize,
+		shadowOrthoSize,
+		-shadowOrthoSize,
+		shadowOrthoSize,
+		0.1f,
+		150.0f
 	);
 	glm::mat4 lightMVP = lightProj * lightView;
 
@@ -144,7 +146,7 @@ void SceneRenderer::renderWithShadows(const Scene &scene, Camera &camera, const 
 	rasterizer->enableShadows(true);
 
 	rasterizer->clearLights();
-	for (const auto& light : sceneLights) {
+	for (const auto &light : sceneLights) {
 		rasterizer->addLight(light);
 	}
 
@@ -152,12 +154,14 @@ void SceneRenderer::renderWithShadows(const Scene &scene, Camera &camera, const 
 	scene.render(mainVisitor);
 }
 
-void SceneRenderer::renderWithoutShadows(const Scene &scene, Camera &camera, const std::vector<Light>& sceneLights) const {
+void SceneRenderer::renderWithoutShadows(const Scene &scene,
+                                         Camera &camera,
+                                         const std::vector<Light> &sceneLights) const {
 	rasterizer->beginFrame();
 	rasterizer->enableShadows(false);
 
 	rasterizer->clearLights();
-	for (const auto& light : sceneLights) {
+	for (const auto &light : sceneLights) {
 		rasterizer->addLight(light);
 	}
 
@@ -175,9 +179,12 @@ glm::mat4 SceneRenderer::computeLightMatrix(const Scene &scene) const {
 	glm::mat4 lightView = glm::lookAt(lightPos, sceneCenter, glm::vec3(0, 1, 0));
 	float shadowOrthoSize = 25.0f;
 	glm::mat4 lightProj = glm::ortho(
-		-shadowOrthoSize, shadowOrthoSize,
-		-shadowOrthoSize, shadowOrthoSize,
-		0.1f, 100.0f
+		-shadowOrthoSize,
+		shadowOrthoSize,
+		-shadowOrthoSize,
+		shadowOrthoSize,
+		0.1f,
+		100.0f
 	);
 
 	return lightProj * lightView;

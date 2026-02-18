@@ -1,2 +1,7 @@
 *cmake-build*
 *.idea
+*.vscode
+*.aux
+*synctex.gz
+*.bbl
+*output

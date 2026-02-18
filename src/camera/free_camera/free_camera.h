@@ -11,7 +11,7 @@ private:
 	float yaw;
 	float pitch;
 	float fov = 60.0f;
-	float aspect = 4.0f / 3.0f;
+	float aspect = 16.0f / 9.0f;
 	float nearPlane = 0.1f;
 	float farPlane = 100.0f;
 	float speed = 2.0f;

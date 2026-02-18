@@ -5,6 +5,7 @@
 #include <QGraphicsScene>
 #include <QImage>
 #include <QTimer>
+#include <QStandardItemModel>
 
 #include "scene.h"
 #include "scene_renderer.h"
@@ -32,6 +33,8 @@ private slots:
 	void onOrbitCameraToggled(bool checked);
 	void onFreeCameraToggled(bool checked);
 	void onShadowsToggled(bool checked);
+	void onAddRuleClicked();
+	void onDeleteRule();
 
 private:
 	Ui::MainWindow *ui;
@@ -45,6 +48,8 @@ private:
 	bool isDragging = false;
 	QPoint lastMousePos;
 
+	QStandardItemModel* rulesModel;
+
 	void setupUi();
 	void connectSignals();
 	void loadPreset(const QString& name);
@@ -52,6 +57,10 @@ private:
 	void render();
 	void updateImage(const QImage& frame);
 	void updateLight();
+	void setupRulesTable();
+	void populateSymbolsComboBox();
+	void clearRulesTable();
+	void addRuleToTable(QChar symbol, const QString& rule);
 
 protected:
 	void keyPressEvent(QKeyEvent* event) override;

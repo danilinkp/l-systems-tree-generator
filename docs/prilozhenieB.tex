@@ -1,0 +1,36 @@
+\begin{center}
+    \textbf{ПРИЛОЖЕНИЕ Б}
+\end{center}
+\addcontentsline{toc}{chapter}{ПРИЛОЖЕНИЕ Б}
+
+\setcounter{lstlisting}{0} % сброс счётчика
+\renewcommand{\thelstlisting}{Б.\arabic{lstlisting}}
+
+\lstinputlisting[
+    language=C++,
+    caption={Реализация растеризации с учётом z-буффера},
+    captionpos=b,
+    label=lst:z-buffer
+]{code/z-buffer.cpp}
+
+\lstinputlisting[
+    language=C++,
+    caption={Реализация построения карты теней},
+    captionpos=b,
+    label=lst:shadow-map
+]{code/shadow_map.cpp}
+\clearpage
+
+\lstinputlisting[
+    language=C++,
+    caption={Реализация модели освещения по Блинну-Фонгу},
+    captionpos=b,
+    label=lst:phong
+]{code/phong.cpp}
+\clearpage
+\lstinputlisting[
+    language=C++,
+    caption={Реализация алгоритма построения структуры дерева},
+    captionpos=b,
+    label=lst:lsys
+]{code/l-system.cpp}

@@ -2,8 +2,6 @@
 #define ZBUFFER_H
 
 #include <vector>
-#include <mutex>
-#include <memory>
 
 class ZBuffer {
 public:
@@ -16,9 +14,9 @@ public:
   bool test(int x, int y, float depth) const;
 
   float get(int x, int y) const;
+
 private:
   std::vector<float> buffer;
-  std::vector<std::unique_ptr<std::mutex>> rowMutexes;
   int width;
   int height;
 };

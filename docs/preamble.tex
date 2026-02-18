@@ -1,0 +1,92 @@
+\usepackage{cmap}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{tabularx}
+\usepackage{threeparttable}
+\usepackage[14pt]{extsizes}
+\usepackage{caption}
+    \captionsetup{labelsep=endash}
+    \captionsetup[figure]{name={Рисунок}}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{geometry}
+    \geometry{left=30mm}
+    \geometry{right=10mm}
+    \geometry{top=20mm}
+    \geometry{bottom=20mm}
+    \setlength{\parindent}{1.25cm}
+
+\def\labelitemi{---}
+\setlist[itemize]{leftmargin=1.25cm, itemindent=0.65cm}
+\setlist[enumerate]{
+    wide=\parindent,        % весь список выравнивается по абзацному отступу
+    labelwidth=!,           % ширина метки подстраивается
+    itemindent=!,           % отступ текста после метки — автоматически
+    listparindent=\parindent % при переносе — отступ как в обычном абзаце
+}
+\usepackage{titlesec}
+\newlength{\twospaces}
+\settowidth{\twospaces}{шш}
+
+% \makeatletter
+% \renewcommand{\l@chapter}{\@dottedtocline{0}{0em}{1.5em}}
+% \renewcommand{\l@section}{\@dottedtocline{1}{1.5em}{2.3em}}
+% \renewcommand{\l@subsection}{\@dottedtocline{2}{3.0em}{3.2em}}
+% \makeatother
+% \titlespacing*{\chapter}{\parindent}{-30pt}{8pt}
+% \titlespacing*{\section}{\parindent}{*4}{*4}
+% \titlespacing*{\subsection}{\parindent}{*4}{*4}
+
+\usepackage{setspace}
+\onehalfspacing
+
+\lstset{ %
+	inputencoding=utf8,
+    extendedchars=true,
+	language=caml,                 % выбор языка для подсветки (здесь это С)
+	basicstyle=\small\ttfamily, % размер и начертание шрифта для подсветки кода
+	numbers=none,               % где поставить нумерацию строк (слева\справа)
+	numberstyle=\tiny,           % размер шрифта для номеров строк
+	stepnumber=1,                   % размер шага между двумя номерами строк
+%	numbersep=5pt,                % как далеко отстоят номера строк от подсвечиваемого кода
+	showspaces=false,            % показывать или нет пробелы специальными отступами
+	showstringspaces=false,      % показывать или нет пробелы в строках
+	showtabs=false,             % показывать или нет табуляцию в строках
+	frame=single,              % рисовать рамку вокруг кода
+	tabsize=2,                 % размер табуляции по умолчанию равен 2 пробелам
+	captionpos=t,              % позиция заголовка вверху [t] или внизу [b] 
+	breaklines=true,           % автоматически переносить строки (да\нет)
+	breakatwhitespace=false, % переносить строки только если есть пробел
+	escapeinside={\#*}{*)},   % если нужно добавить комментарии в коде
+	abovecaptionskip=-5pt
+}
+
+\frenchspacing
+\usepackage{indentfirst}
+
+\usepackage{titlesec}
+% \titleformat{\chapter}{\LARGE\bfseries}{\thechapter}{20pt}{\LARGE\bfseries}
+% \titleformat{\section}{\Large\bfseries}{\thesection}{20pt}{\Large\bfseries}
+
+\usepackage{multirow}
+\usepackage{listings}
+\usepackage{xcolor}
+
+
+\usepackage{pgfplots}
+\usepackage{tikz}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{datavisualization}
+\usetikzlibrary{datavisualization.formats.functions}
+
+\usepackage{graphicx}
+
+\captionsetup[table]{justification=raggedright, singlelinecheck=false, labelsep=endash}
+\captionsetup[lstlisting]{justification=centering, singlelinecheck=true}
+
+\usepackage{csvsimple}
+\newcommand{\code}[1]{\texttt{#1}}
+\usepackage{gensymb}
+
+\usepackage{makecell}
+\renewcommand{\theadfont}{\bfseries}

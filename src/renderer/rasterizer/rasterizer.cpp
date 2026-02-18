@@ -2,9 +2,6 @@
 #include <glm/common.hpp>
 #include <cmath>
 #include <algorithm>
-#include <thread>
-#include <vector>
-#include <mutex>
 #include "draw_visitor.h"
 
 Rasterizer::Rasterizer(int width, int height)
@@ -16,7 +13,6 @@ Rasterizer::Rasterizer(int width, int height)
 	  trianglesCulled(0),
 	  pixelsDrawn(0) {
 
-
 	material.ambient = glm::vec3(0.2f);
 	material.diffuse = glm::vec3(1.5f);
 	material.specular = glm::vec3(0.2f);
@@ -25,61 +21,26 @@ Rasterizer::Rasterizer(int width, int height)
 
 void Rasterizer::beginFrame() {
 	clear();
+
+	shadowMapData = nullptr;
+	shadowMapWidth = 0;
+	shadowMapHeight = 0;
+	useShadows = false;
 }
 
 void Rasterizer::renderMesh(const Mesh &mesh, const glm::mat4 &mvp, const glm::vec3 &cameraPos, const QImage* texture) {
 	currentTexture = texture;
-	
-	const size_t numTriangles = mesh.triangles.size();
-	
-	if (numTriangles < 50) {
-		for (const Triangle &tri : mesh.triangles) {
-			const Vertex &v0 = mesh.vertices[tri.i0];
-			const Vertex &v1 = mesh.vertices[tri.i1];
-			const Vertex &v2 = mesh.vertices[tri.i2];
 
-			ScreenVertex sv0 = transformVertex(v0, mvp);
-			ScreenVertex sv1 = transformVertex(v1, mvp);
-			ScreenVertex sv2 = transformVertex(v2, mvp);
+	for (const Triangle &tri : mesh.triangles) {
+		const Vertex &v0 = mesh.vertices[tri.i0];
+		const Vertex &v1 = mesh.vertices[tri.i1];
+		const Vertex &v2 = mesh.vertices[tri.i2];
 
-			drawTriangle(sv0, sv1, sv2, cameraPos);
-		}
-	} else {
-		std::vector<TriangleData> triangleData;
-		triangleData.reserve(numTriangles);
-		
-		for (const Triangle &tri : mesh.triangles) {
-			const Vertex &v0 = mesh.vertices[tri.i0];
-			const Vertex &v1 = mesh.vertices[tri.i1];
-			const Vertex &v2 = mesh.vertices[tri.i2];
+		ScreenVertex sv0 = transformVertex(v0, mvp);
+		ScreenVertex sv1 = transformVertex(v1, mvp);
+		ScreenVertex sv2 = transformVertex(v2, mvp);
 
-			ScreenVertex sv0 = transformVertex(v0, mvp);
-			ScreenVertex sv1 = transformVertex(v1, mvp);
-			ScreenVertex sv2 = transformVertex(v2, mvp);
-			
-			if (sv0.position.x == 0 && sv0.position.y == 0 && sv0.depth == 0) continue;
-			if (sv1.position.x == 0 && sv1.position.y == 0 && sv1.depth == 0) continue;
-			if (sv2.position.x == 0 && sv2.position.y == 0 && sv2.depth == 0) continue;
-			
-			float area2D = std::abs(
-				(sv1.position.x - sv0.position.x) * (sv2.position.y - sv0.position.y) -
-				(sv2.position.x - sv0.position.x) * (sv1.position.y - sv0.position.y)
-			);
-			
-			if (area2D < 0.5f) {
-				trianglesCulled++;
-				continue;
-			}
-			
-			if (!isOnScreen(sv0) && !isOnScreen(sv1) && !isOnScreen(sv2)) {
-				trianglesCulled++;
-				continue;
-			}
-			
-			triangleData.push_back({sv0, sv1, sv2, cameraPos});
-		}
-		
-		renderTiles(triangleData, DEFAULT_TILE_SIZE);
+		drawTriangle(sv0, sv1, sv2, cameraPos);
 	}
 
 	currentTexture = nullptr;
@@ -265,30 +226,8 @@ void Rasterizer::drawScanline(int y, const ScreenVertex &left, const ScreenVerte
 	int xStart = std::max(0, static_cast<int>(std::floor(left.position.x + 0.5f)));
 	int xEnd = std::min(image.width() - 1, static_cast<int>(std::floor(right.position.x + 0.5f)));
 
-	drawScanlineInTile(y, left, right, cameraPos, xStart, xEnd);
-}
-
-void Rasterizer::drawScanlineInTile(int y, const ScreenVertex &left, const ScreenVertex &right, 
-                                     const glm::vec3 &cameraPos, int xStart, int xEnd) {
-	if (left.position.x > right.position.x || xStart > xEnd)
-		return;
-
-	float dx = right.position.x - left.position.x;
-	if (dx < 0.1f) {
-		if (xStart >= 0 && xStart < image.width()) {
-			if (zBuffer->testAndSet(xStart, y, left.depth)) {
-				QColor color = calculateColor(left, cameraPos);
-				{
-					std::lock_guard lock(imageMutex);
-					image.setPixel(xStart, y, color.rgb());
-				}
-				pixelsDrawn++;
-			}
-		}
-		return;
-	}
-
 	float invDx = 1.0f / dx;
+	QRgb* scanline = reinterpret_cast<QRgb*>(image.scanLine(y));
 
 	for (int x = xStart; x <= xEnd; x++) {
 		float px = x + 0.5f;
@@ -303,11 +242,8 @@ void Rasterizer::drawScanlineInTile(int y, const ScreenVertex &left, const Scree
 
 			if (zBuffer->testAndSet(x, y, pixel.depth)) {
 				QColor color = calculateColor(pixel, cameraPos);
-				{
-					std::lock_guard lock(imageMutex);
-					image.setPixel(x, y, color.rgb());
-				}
-				++pixelsDrawn;
+				scanline[x] = color.rgb();
+				pixelsDrawn++;
 			}
 		}
 	}
@@ -373,13 +309,11 @@ QColor Rasterizer::calculateColor(const ScreenVertex &pixel, const glm::vec3 &ca
 			normal = glm::vec3(0, 1, 0);
 		else
 			normal /= normalLength;
-		
 
 		float shadowFactor = 1.0f;
 
 		if (useShadows && shadowMapData != nullptr && shadowMapWidth > 0 && shadowMapHeight > 0) {
 			glm::vec4 lightSpacePos = lightMVP * glm::vec4(pixel.worldPos, 1.0f);
-
 
 			if (lightSpacePos.w > 0.001f) {
 				glm::vec3 ndcCoords = glm::vec3(lightSpacePos) / lightSpacePos.w;
@@ -390,21 +324,18 @@ QColor Rasterizer::calculateColor(const ScreenVertex &pixel, const glm::vec3 &ca
 				shadowCoords.y = 1.0f - ndcYNormalized;
 				shadowCoords.z = ndcCoords.z * 0.5f + 0.5f;
 
-
 				if (shadowCoords.x >= 0.0f && shadowCoords.x <= 1.0f &&
 					shadowCoords.y >= 0.0f && shadowCoords.y <= 1.0f &&
 					shadowCoords.z >= 0.0f && shadowCoords.z <= 1.0f) {
 
 					float shadow = 0.0f;
 					int samples = 0;
-					
+
 					int filterSize = 3;
-					float texelSize = 1.0f / shadowMapWidth;
-					
+					float texelSize = 1.0f / static_cast<float>(shadowMapWidth);
 
 					for (int x = -filterSize/2; x <= filterSize/2; ++x) {
 						for (int y = -filterSize/2; y <= filterSize/2; ++y) {
-
 							float sampleX = shadowCoords.x + x * texelSize;
 							float sampleY = shadowCoords.y + y * texelSize;
 
@@ -413,32 +344,32 @@ QColor Rasterizer::calculateColor(const ScreenVertex &pixel, const glm::vec3 &ca
 
 								int shadowX = static_cast<int>(std::round(sampleX * (shadowMapWidth - 1)));
 								int shadowY = static_cast<int>(std::round(sampleY * (shadowMapHeight - 1)));
-								
+
 								shadowX = std::clamp(shadowX, 0, shadowMapWidth - 1);
 								shadowY = std::clamp(shadowY, 0, shadowMapHeight - 1);
 
 								int shadowIdx = shadowY * shadowMapWidth + shadowX;
+								int maxIdx = shadowMapWidth * shadowMapHeight;
 
-								if (shadowIdx >= 0 && shadowIdx < shadowMapWidth * shadowMapHeight) {
+								if (shadowIdx >= 0 && shadowIdx < maxIdx && shadowMapData != nullptr) {
 									float shadowDepth = shadowMapData[shadowIdx];
 									float fragmentDepth = shadowCoords.z;
 
 									float bias = 0.001f;
 
 									bool inShadow = fragmentDepth > shadowDepth + bias;
-									
+
 									if (inShadow) {
 										shadow += 1.0f;
 									}
 									samples++;
-									
 								}
 							}
 						}
 					}
 
 					if (samples > 0) {
-						float shadowAmount = shadow / samples;
+						float shadowAmount = shadow / static_cast<float>(samples);
 						shadowFactor = 1.0f - shadowAmount * 0.8f;
 					}
 				}
@@ -457,13 +388,10 @@ QColor Rasterizer::calculateColor(const ScreenVertex &pixel, const glm::vec3 &ca
 	} else
 		finalColor = baseColor;
 
-	finalColor *= 1.05f;
-	finalColor = glm::clamp(finalColor, 0.0f, 1.0f);
-
 	return QColor(
-		finalColor.r * 255,
-		finalColor.g * 255,
-		finalColor.b * 255
+		std::clamp(static_cast<int>(finalColor.r * 255), 0, 255),
+		std::clamp(static_cast<int>(finalColor.g * 255), 0, 255),
+		std::clamp(static_cast<int>(finalColor.b * 255), 0, 255)
 	);
 }
 
@@ -505,148 +433,9 @@ int Rasterizer::getHeight() const {
 	return image.height();
 }
 
-void Rasterizer::renderTiles(const std::vector<TriangleData>& triangles, int tileSize) {
-	if (triangles.empty()) return;
-	
-	const int width = image.width();
-	const int height = image.height();
-	const int tilesX = (width + tileSize - 1) / tileSize;
-	const int tilesY = (height + tileSize - 1) / tileSize;
-	const int totalTiles = tilesX * tilesY;
-	
-	std::vector<std::vector<size_t>> tileTriangles(totalTiles);
-	
-	for (size_t triIdx = 0; triIdx < triangles.size(); triIdx++) {
-		const auto& tri = triangles[triIdx];
-		
-		float minX = std::min({tri.v0.position.x, tri.v1.position.x, tri.v2.position.x});
-		float maxX = std::max({tri.v0.position.x, tri.v1.position.x, tri.v2.position.x});
-		float minY = std::min({tri.v0.position.y, tri.v1.position.y, tri.v2.position.y});
-		float maxY = std::max({tri.v0.position.y, tri.v1.position.y, tri.v2.position.y});
-		
-		int tileMinX = std::max(0, static_cast<int>(std::floor(minX / tileSize)));
-		int tileMaxX = std::min(tilesX - 1, static_cast<int>(std::floor(maxX / tileSize)));
-		int tileMinY = std::max(0, static_cast<int>(std::floor(minY / tileSize)));
-		int tileMaxY = std::min(tilesY - 1, static_cast<int>(std::floor(maxY / tileSize)));
-		
-		for (int ty = tileMinY; ty <= tileMaxY; ty++) {
-			for (int tx = tileMinX; tx <= tileMaxX; tx++) {
-				int tileIdx = ty * tilesX + tx;
-				tileTriangles[tileIdx].push_back(triIdx);
-			}
-		}
-	}
-	
-	constexpr size_t numThreads = 8;
-	std::vector<std::thread> threads;
-	std::atomic<size_t> nextTile(0);
-	
-	for (size_t t = 0; t < numThreads; ++t) {
-		threads.emplace_back([this, &triangles, &tileTriangles, &nextTile,
-		                      tilesX, tilesY, tileSize, width, height]() {
-			while (true) {
-				size_t tileIdx = nextTile.fetch_add(1);
-				if (tileIdx >= tileTriangles.size()) break;
-				
-				int tx = tileIdx % tilesX;
-				int ty = tileIdx / tilesX;
-				
-				int tileMinX = tx * tileSize;
-				int tileMinY = ty * tileSize;
-				int tileMaxX = std::min(width - 1, (tx + 1) * tileSize - 1);
-				int tileMaxY = std::min(height - 1, (ty + 1) * tileSize - 1);
-				
-				for (size_t triIdx : tileTriangles[tileIdx]) {
-					const auto& tri = triangles[triIdx];
-					fillTriangleInTile(tri.v0, tri.v1, tri.v2, tri.cameraPos,
-					                   tileMinX, tileMinY, tileMaxX, tileMaxY);
-				}
-			}
-		});
-	}
-	
-	for (auto& thread : threads) {
-		thread.join();
-	}
-	
-	trianglesDrawn += triangles.size();
-}
-
-void Rasterizer::fillTriangleInTile(ScreenVertex v0, ScreenVertex v1, ScreenVertex v2, 
-                                     const glm::vec3& cameraPos,
-                                     int tileMinX, int tileMinY, int tileMaxX, int tileMaxY) {
-	if (v0.position.y > v1.position.y) std::swap(v0, v1);
-	if (v0.position.y > v2.position.y) std::swap(v0, v2);
-	if (v1.position.y > v2.position.y) std::swap(v1, v2);
-
-	float dy = v2.position.y - v0.position.y;
-	if (dy < 0.5f) return;
-
-	float area = std::abs(
-		(v1.position.x - v0.position.x) * (v2.position.y - v0.position.y) -
-		(v2.position.x - v0.position.x) * (v1.position.y - v0.position.y)
-	) * 0.5f;
-
-	if (area < 0.1f) return;
-
-	float invTotalHeight = 1.0f / dy;
-
-	float upperHeight = v1.position.y - v0.position.y;
-	if (upperHeight > 0.1f) {
-		int yStart = std::max(tileMinY, (int)std::ceil(v0.position.y - 0.5f));
-		int yEnd = std::min(tileMaxY, (int)std::floor(v1.position.y - 0.5f));
-
-		for (int y = yStart; y <= yEnd; y++) {
-			float py = y + 0.5f;
-
-			float alpha = (py - v0.position.y) * invTotalHeight;
-			alpha = glm::clamp(alpha, 0.0f, 1.0f);
-
-			float beta = (py - v0.position.y) / upperHeight;
-			beta = glm::clamp(beta, 0.0f, 1.0f);
-
-			ScreenVertex edgeLong = interpolate(v0, v2, alpha);
-			ScreenVertex edgeShort = interpolate(v0, v1, beta);
-
-			if (edgeLong.position.x > edgeShort.position.x)
-				std::swap(edgeLong, edgeShort);
-
-			int xStart = std::max(tileMinX, static_cast<int>(std::floor(edgeLong.position.x + 0.5f)));
-			int xEnd = std::min(tileMaxX, static_cast<int>(std::floor(edgeShort.position.x + 0.5f)));
-			
-			if (xStart <= xEnd) {
-				drawScanlineInTile(y, edgeLong, edgeShort, cameraPos, xStart, xEnd);
-			}
-		}
-	}
-
-	float lowerHeight = v2.position.y - v1.position.y;
-	if (lowerHeight > 0.1f) {
-		int yStart = std::max(tileMinY, (int)std::ceil(v1.position.y - 0.5f));
-		int yEnd = std::min(tileMaxY, (int)std::floor(v2.position.y - 0.5f));
-
-		for (int y = yStart; y <= yEnd; y++) {
-			float py = y + 0.5f;
-
-			float alpha = (py - v0.position.y) * invTotalHeight;
-			alpha = glm::clamp(alpha, 0.0f, 1.0f);
-
-			float beta = (py - v1.position.y) / lowerHeight;
-			beta = glm::clamp(beta, 0.0f, 1.0f);
-
-			ScreenVertex edgeLong = interpolate(v0, v2, alpha);
-			ScreenVertex edgeShort = interpolate(v1, v2, beta);
-
-			if (edgeLong.position.x > edgeShort.position.x) {
-				std::swap(edgeLong, edgeShort);
-			}
-
-			int xStart = std::max(tileMinX, static_cast<int>(std::floor(edgeLong.position.x + 0.5f)));
-			int xEnd = std::min(tileMaxX, static_cast<int>(std::floor(edgeShort.position.x + 0.5f)));
-			
-			if (xStart <= xEnd) {
-				drawScanlineInTile(y, edgeLong, edgeShort, cameraPos, xStart, xEnd);
-			}
-		}
-	}
+void Rasterizer::clearShadowMap() {
+	shadowMapData = nullptr;
+	shadowMapWidth = 0;
+	shadowMapHeight = 0;
+	useShadows = false;
 }

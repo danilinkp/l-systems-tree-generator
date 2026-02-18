@@ -10,6 +10,7 @@
 #include <QDebug>
 #include <QImage>
 #include <memory>
+#include <random>
 
 struct BranchSegment {
 	glm::vec3 position;
@@ -31,7 +32,7 @@ struct TreeNode {
 	int depth = 0;
 	std::weak_ptr<TreeNode> parent;
 	QVector<glm::vec3> splinePoints;
-	QVector<float> splineRadii;
+	QList<float> splineRadii;
 	bool isTerminal = false;
 	bool hasLeaf = false;
 };
@@ -62,9 +63,9 @@ public:
 
 	Mesh interpret(const QString &commands);
 	TreeMeshes interpretTree(const QString &commands);
+	void reset();
 
 private:
-	void reset();
 	void rotateAroundAxis(const glm::vec3 &axis, float angle);
 	void buildTree(const QString &commands);
 	void computeRadii(const std::shared_ptr<TreeNode> &node);
@@ -106,6 +107,8 @@ private:
 
 	QImage barkTexture;
 	QImage leafTexture;
+
+	mutable std::mt19937 rng;
 };
 
 #endif // TURTLEINTERPRETER3D_H

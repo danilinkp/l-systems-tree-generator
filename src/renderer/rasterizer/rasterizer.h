@@ -13,6 +13,7 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include <limits>
 
 struct ScreenVertex {
 	glm::vec2 position;
@@ -59,6 +60,8 @@ public:
 	void setShadowMap(const float* data, int w, int h, const glm::mat4& mvp);
 	void enableShadows(bool enable) { useShadows = enable; }
 
+	void clearShadowMap();
+
 private:
 	QImage image;
 	std::shared_ptr<ZBuffer> zBuffer;
@@ -72,8 +75,6 @@ private:
 	std::atomic<int> trianglesDrawn;
 	std::atomic<int> trianglesCulled;
 	std::atomic<int> pixelsDrawn;
-
-	mutable std::mutex imageMutex;
 
 	const float* shadowMapData = nullptr;
 	int shadowMapWidth = 0;
@@ -90,23 +91,11 @@ private:
 	                  const ScreenVertex &v2,
 	                  const glm::vec3 &cameraPos);
 	void fillTriangle(ScreenVertex v0, ScreenVertex v1, ScreenVertex v2, const glm::vec3 &cameraPos);
-	void fillTriangleInTile(ScreenVertex v0, ScreenVertex v1, ScreenVertex v2, const glm::vec3 &cameraPos, 
-	                        int tileMinX, int tileMinY, int tileMaxX, int tileMaxY);
 	void drawScanline(int y, const ScreenVertex &left, const ScreenVertex &right, const glm::vec3 &cameraPos);
-	void drawScanlineInTile(int y, const ScreenVertex &left, const ScreenVertex &right, const glm::vec3 &cameraPos,
-	                        int xStart, int xEnd);
 	[[nodiscard]] ScreenVertex interpolate(const ScreenVertex &v0, const ScreenVertex &v1, float t) const;
 	[[nodiscard]] QColor calculateColor(const ScreenVertex &pixel, const glm::vec3 &cameraPos) const;
 	[[nodiscard]] bool isOnScreen(const ScreenVertex &sv) const;
-	
-	// Тайловая параллелизация
-	struct TriangleData {
-		ScreenVertex v0, v1, v2;
-		glm::vec3 cameraPos;
-	};
-	
-	void renderTiles(const std::vector<TriangleData>& triangles, int tileSize);
-	static constexpr int DEFAULT_TILE_SIZE = 128;
+
 };
 
 #endif // RASTERIZER_H

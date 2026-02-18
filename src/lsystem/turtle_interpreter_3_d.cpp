@@ -5,7 +5,7 @@
 
 TurtleInterpreter3D::TurtleInterpreter3D()
 	: state(), stepLength(1.0f), angle(glm::radians(25.7f)), baseRadius(0.1f), radiusDecay(0.7f), minLeafRadius(0.02f),
-	  gravityFactor(0.05f), radialSegments(12) {
+	  gravityFactor(0.05f), radialSegments(12), rng(std::random_device{}()) {
 	reset();
 }
 
@@ -118,48 +118,45 @@ void TurtleInterpreter3D::buildTree(const QString &commands) {
 			break;
 		}
 		case '+': {
-			static std::random_device rd;
-			static std::mt19937 gen(rd());
+			static std::mt19937 gen(std::random_device{}());
 			std::normal_distribution angleNoise(0.0f, angleVariation * 0.1f);
 			float actualAngle = angle + glm::radians(angleNoise(gen));
 			rotateAroundAxis(state.up, actualAngle);
 			break;
 		}
 		case '-': {
-			static std::random_device rd;
-			static std::mt19937 gen(rd());
+			static std::mt19937 gen(std::random_device{}());
 			std::normal_distribution angleNoise(0.0f, angleVariation * 0.1f);
 			float actualAngle = -angle + glm::radians(angleNoise(gen));
 			rotateAroundAxis(state.up, actualAngle);
 			break;
 		}
 		case '&': {
-			static std::random_device rd;
-			static std::mt19937 gen(rd());
+			static std::mt19937 gen(std::random_device{}());  // ← Инициализация ОДИН РАЗ
 			std::normal_distribution angleNoise(0.0f, angleVariation * 0.1f);
 			float actualAngle = angle + glm::radians(angleNoise(gen));
 			rotateAroundAxis(state.left, actualAngle);
 			break;
 		}
 		case '^': {
-			static std::random_device rd;
-			static std::mt19937 gen(rd());
+			static std::mt19937 gen(std::random_device{}());  // ← Инициализация ОДИН РАЗ
+
 			std::normal_distribution angleNoise(0.0f, angleVariation * 0.1f);
 			float actualAngle = -angle + glm::radians(angleNoise(gen));
 			rotateAroundAxis(state.left, actualAngle);
 			break;
 		}
 		case '\\': {
-			static std::random_device rd;
-			static std::mt19937 gen(rd());
+			static std::mt19937 gen(std::random_device{}());  // ← Инициализация ОДИН РАЗ
+
 			std::normal_distribution angleNoise(0.0f, angleVariation * 0.1f);
 			float actualAngle = angle + glm::radians(angleNoise(gen));
 			rotateAroundAxis(state.heading, actualAngle);
 			break;
 		}
 		case '/': {
-			static std::random_device rd;
-			static std::mt19937 gen(rd());
+			static std::mt19937 gen(std::random_device{}());  // ← Инициализация ОДИН РАЗ
+
 			std::normal_distribution angleNoise(0.0f, angleVariation * 0.1f);
 			float actualAngle = -angle + glm::radians(angleNoise(gen));
 			rotateAroundAxis(state.heading, actualAngle);
@@ -263,10 +260,9 @@ void TurtleInterpreter3D::generateSplines(std::shared_ptr<TreeNode> node) {
 
 			float radiusDecayFactor = 1.0f - normalizedPos * (0.2f + 0.1f * node->depth);
 
-			static std::random_device rd;
-			static std::mt19937 gen(rd());
-			std::normal_distribution radiusNoise(1.0f, radiusVariation);
-			float radiusVariationFactor = radiusNoise(gen);
+			std::normal_distribution<float> radiusNoise(1.0f, radiusVariation);
+			float radiusVariationFactor = radiusNoise(rng);
+
 			radiusVariationFactor = glm::clamp(radiusVariationFactor, 0.9f, 1.1f);
 
 			radius *= radiusDecayFactor * radiusVariationFactor;
@@ -324,15 +320,13 @@ void TurtleInterpreter3D::collectLeafPositions(std::shared_ptr<TreeNode> node) {
 			glm::vec3 right, up;
 			computeFrenetFrame(seg.forward, right, up);
 
-			static std::random_device rd;
-			static std::mt19937 gen(rd());
 			std::uniform_real_distribution<float> angleDist(0.0f, 2.0f * M_PI);
 			std::uniform_real_distribution radiusDist(0.9f, 1.2f);
 			std::uniform_real_distribution normalDist(0.8f, 1.3f);
 
-			float angle = angleDist(gen);
-			float radialOffset = seg.radius * radiusDist(gen);
-			float normalOffset = radialOffset * normalDist(gen);
+			float angle = angleDist(rng);
+			float radialOffset = seg.radius * radiusDist(rng);
+			float normalOffset = radialOffset * normalDist(rng);
 
 			glm::vec3 radialDir = std::cos(angle) * right + std::sin(angle) * up;
 			glm::vec3 leafPos = seg.position + radialDir * normalOffset;
@@ -354,8 +348,6 @@ void TurtleInterpreter3D::collectLeafPositionsAndNormals(
        int segmentCount = node->branchSegments.size();
        int startSegment = std::max(0, segmentCount - 3);
 
-       static std::random_device rd;
-       static std::mt19937 gen(rd());
        std::uniform_real_distribution<float> angleDist(0.0f, 2.0f * M_PI);
        std::uniform_real_distribution radiusDist(1.5f, 2.5f);
        std::uniform_real_distribution forwardDist(0.0f, 2.0f);
@@ -370,11 +362,11 @@ void TurtleInterpreter3D::collectLeafPositionsAndNormals(
              glm::vec3 right, up;
              computeFrenetFrame(seg.forward, right, up);
 
-             float forwardOffset = seg.radius * forwardDist(gen);
+             float forwardOffset = seg.radius * forwardDist(rng);
 
-             float angle = angleDist(gen);
+             float angle = angleDist(rng);
 
-             float radialOffset = seg.radius * radiusDist(gen);
+             float radialOffset = seg.radius * radiusDist(rng);
 
              glm::vec3 radialDir = std::cos(angle) * right + std::sin(angle) * up;
 
@@ -383,7 +375,7 @@ void TurtleInterpreter3D::collectLeafPositionsAndNormals(
                                + radialDir * radialOffset;
 
              auto upBias = glm::vec3(0.0f, 0.5f, 0.0f);
-             float tilt = tiltDist(gen);
+             float tilt = tiltDist(rng);
              glm::vec3 leafNormal = glm::normalize(
                  radialDir * tilt + upBias * (1.0f - tilt)
              );
@@ -405,6 +397,7 @@ Mesh TurtleInterpreter3D::generateMesh() const {
 	struct ConnectionInfo {
 		std::shared_ptr<TreeNode> node;
 		QVector<uint32_t> vertexIndices;
+		glm::vec3 connectionPoint;  // Добавлено: позиция соединения
 	};
 
 	QMap<std::shared_ptr<TreeNode>, ConnectionInfo> connections;
@@ -416,6 +409,10 @@ Mesh TurtleInterpreter3D::generateMesh() const {
 			ConnectionInfo info;
 			info.node = node;
 			uint32_t endRingStart = mesh.vertices.size() - radialSegments;
+
+			// Сохраняем позицию последнего сегмента для проверки расстояния
+			info.connectionPoint = node->branchSegments.last().position;
+
 			for (int i = 0; i < radialSegments; i++) {
 				info.vertexIndices.append(endRingStart + i);
 			}
@@ -424,22 +421,62 @@ Mesh TurtleInterpreter3D::generateMesh() const {
 			for (auto &child : node->children) {
 				if (connections.contains(node)) {
 					uint32_t childStartIdx = mesh.vertices.size();
+
+					// Получаем позицию начала дочерней ветви
+					glm::vec3 childStartPos = child->branchSegments.isEmpty()
+						? child->position
+						: child->branchSegments.first().position;
+
 					traverse(child);
 
 					auto &parentRing = connections[node].vertexIndices;
 					uint32_t childFirstRing = childStartIdx;
 
-					for (int i = 0; i < radialSegments; i++) {
-						uint32_t i0 = parentRing[i];
-						uint32_t i1 = parentRing[(i + 1) % radialSegments];
-						uint32_t i2 = childFirstRing + i;
-						uint32_t i3 = childFirstRing + ((i + 1) % radialSegments);
+					// КРИТИЧЕСКАЯ ПРОВЕРКА: расстояние между родителем и ребёнком
+					float distance = glm::length(connections[node].connectionPoint - childStartPos);
+					float maxAllowedDistance = 2.0f; // Максимальное расстояние для соединения
 
-						mesh.addTriangle(i0, i2, i1);
-						mesh.addTriangle(i1, i2, i3);
+					// Только создаём соединение если ветви достаточно близко
+					if (distance < maxAllowedDistance && childFirstRing < mesh.vertices.size()) {
+						// Проверяем что у нас есть достаточно вершин
+						uint32_t childRingEnd = childFirstRing + radialSegments;
+						if (childRingEnd <= mesh.vertices.size()) {
+							for (int i = 0; i < radialSegments; i++) {
+								uint32_t i0 = parentRing[i];
+								uint32_t i1 = parentRing[(i + 1) % radialSegments];
+								uint32_t i2 = childFirstRing + i;
+								uint32_t i3 = childFirstRing + ((i + 1) % radialSegments);
+
+								// Дополнительная проверка валидности индексов
+								if (i0 < mesh.vertices.size() && i1 < mesh.vertices.size() &&
+									i2 < mesh.vertices.size() && i3 < mesh.vertices.size()) {
+
+									// Проверка что треугольники не вырожденные
+									glm::vec3 v0 = mesh.vertices[i0].position;
+									glm::vec3 v1 = mesh.vertices[i1].position;
+									glm::vec3 v2 = mesh.vertices[i2].position;
+									glm::vec3 v3 = mesh.vertices[i3].position;
+
+									// Вычисляем площадь треугольников
+									float area1 = glm::length(glm::cross(v1 - v0, v2 - v0));
+									float area2 = glm::length(glm::cross(v2 - v1, v3 - v1));
+
+									// Только добавляем треугольники если они не вырожденные
+									if (area1 > 0.001f) {
+										mesh.addTriangle(i0, i2, i1);
+									}
+									if (area2 > 0.001f) {
+										mesh.addTriangle(i1, i2, i3);
+									}
+								}
+							}
+						}
+					} else if (distance >= maxAllowedDistance) {
+						qDebug() << "Skipping connection - distance too large:" << distance;
 					}
-				} else
+				} else {
 					traverse(child);
+				}
 			}
 		}
 	};
@@ -447,6 +484,55 @@ Mesh TurtleInterpreter3D::generateMesh() const {
 	traverse(root);
 
 	return mesh;
+
+	// Mesh mesh;
+	// glm::vec3 brownColor(0.45f, 0.25f, 0.1f);
+	//
+	// struct ConnectionInfo {
+	// 	std::shared_ptr<TreeNode> node;
+	// 	QVector<uint32_t> vertexIndices;
+	// };
+	//
+	// QMap<std::shared_ptr<TreeNode>, ConnectionInfo> connections;
+	//
+	// std::function<void(std::shared_ptr<TreeNode>)> traverse = [&](const std::shared_ptr<TreeNode> &node) {
+	// 	if (!node->branchSegments.isEmpty()) {
+	// 		addTube(mesh, node->branchSegments, brownColor, radialSegments);
+	//
+	// 		ConnectionInfo info;
+	// 		info.node = node;
+	// 		uint32_t endRingStart = mesh.vertices.size() - radialSegments;
+	// 		for (int i = 0; i < radialSegments; i++) {
+	// 			info.vertexIndices.append(endRingStart + i);
+	// 		}
+	// 		connections[node] = info;
+	//
+	// 		for (auto &child : node->children) {
+	// 			if (connections.contains(node)) {
+	// 				uint32_t childStartIdx = mesh.vertices.size();
+	// 				traverse(child);
+	//
+	// 				auto &parentRing = connections[node].vertexIndices;
+	// 				uint32_t childFirstRing = childStartIdx;
+	//
+	// 				for (int i = 0; i < radialSegments; i++) {
+	// 					uint32_t i0 = parentRing[i];
+	// 					uint32_t i1 = parentRing[(i + 1) % radialSegments];
+	// 					uint32_t i2 = childFirstRing + i;
+	// 					uint32_t i3 = childFirstRing + ((i + 1) % radialSegments);
+	//
+	// 					mesh.addTriangle(i0, i2, i1);
+	// 					mesh.addTriangle(i1, i2, i3);
+	// 				}
+	// 			} else
+	// 				traverse(child);
+	// 		}
+	// 	}
+	// };
+	//
+	// traverse(root);
+	//
+	// return mesh;
 }
 
 void TurtleInterpreter3D::addTube(Mesh &mesh,

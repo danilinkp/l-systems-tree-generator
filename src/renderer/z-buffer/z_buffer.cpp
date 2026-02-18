@@ -4,10 +4,6 @@
 
 ZBuffer::ZBuffer(int w, int h) : width(w), height(h) {
 	buffer.resize(w * h, std::numeric_limits<float>::max());
-	rowMutexes.resize(h);
-	for (auto& mutex : rowMutexes) {
-		mutex = std::make_unique<std::mutex>();
-	}
 }
 
 void ZBuffer::clear() {
@@ -18,8 +14,6 @@ bool ZBuffer::testAndSet(int x, int y, float depth) {
 	if (x < 0 || x >= width || y < 0 || y >= height)
 		return false;
 
-	std::lock_guard lock(*rowMutexes[y]);
-	
 	int idx = y * width + x;
 	if (depth < buffer[idx]) {
 		buffer[idx] = depth;
@@ -33,8 +27,6 @@ bool ZBuffer::test(int x, int y, float depth) const {
 	if (x < 0 || x >= width || y < 0 || y >= height)
 		return false;
 
-	std::lock_guard lock(*rowMutexes[y]);
-	
 	int idx = y * width + x;
 	return depth < buffer[idx];
 }
@@ -43,7 +35,6 @@ float ZBuffer::get(int x, int y) const {
 	if (x < 0 || x >= width || y < 0 || y >= height)
 		return std::numeric_limits<float>::max();
 
-	std::lock_guard lock(*rowMutexes[y]);
 	return buffer[y * width + x];
 }
 
